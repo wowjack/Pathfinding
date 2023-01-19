@@ -55,7 +55,8 @@ fn init(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, windows: Res<W
                         ..default()
                     })
                     .insert(meshes.add(Mesh::from(shape::Quad::default())))
-                    .insert(PickableBundle::default());
+                    .insert(PickableBundle::default())
+                    .insert(GameTile);
                 }
             }
         });
@@ -67,10 +68,14 @@ struct GameState {
 
 }
 
-fn events(mut events: EventReader<PickingEvent>) {
+#[derive(Component)]
+struct GameTile;
+
+fn events(mut events: EventReader<PickingEvent>, mut tile_query: Query<&mut Sprite, With<GameTile>>) {
     for event in events.iter() {
         if let PickingEvent::Clicked(e) = event {
-            println!("{:?}", e);
+            let color: Color = tile_query.get_mut(*e).expect("Failed to find tile color").color;
+            tile_query.get_mut(*e).expect("Failed to find tile color").color = if color==Color::BLACK {Color::WHITE} else {Color::BLACK};
         }
     }
 }
