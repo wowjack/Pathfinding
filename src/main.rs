@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
 
-use std::borrow::BorrowMut;
 
 use bevy::prelude::*;
 use bevy_mod_picking::{DefaultPickingPlugins, PickingCameraBundle, PickableBundle, PickingEvent, HoverEvent};
@@ -15,8 +14,9 @@ const GRID_SIZE: usize = 32;
 
 fn main() {
     App::new()
-        .add_event::<TileColorEvent>()
-        .init_resource::<TileColorUpdateList>()
+        .add_event::<FastTileEvent>()
+        .add_event::<SlowTileEvent>()
+        .init_resource::<SlowTileUpdateBuffer>()
         .init_resource::<UpdateTimer>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             window: WindowDescriptor {
@@ -34,12 +34,12 @@ fn main() {
         .add_system(allow_clicking)
         .add_system(gui)
         .add_system(save_tile_color_events)
-        .add_system(process_tile_color_events)
-        .add_system(process_tile_click_events)
+        .add_system(process_fast_tile_events)
+        .add_system(process_slow_tile_events)
         .run();
 }
 
-fn init(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, windows: Res<Windows>, mut list: ResMut<TileColorUpdateList>) {
+fn init(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, windows: Res<Windows>) {
     let window = windows.get_primary().expect("Failed to find primary window");
     commands.spawn((Camera2dBundle::default(), PickingCameraBundle::default()));
 
@@ -99,24 +99,20 @@ pub enum TileType {
 #[derive(Component)]
 pub struct GridTile;
 
-fn allow_clicking(mut events: EventReader<PickingEvent>, mut tile_query: Query<&mut Sprite, With<GridTile>>, mouse: Res<Input<MouseButton>>) {
+fn allow_clicking(
+    mut events: EventReader<PickingEvent>,
+    mouse: Res<Input<MouseButton>>,
+    mut click_event_writer: EventWriter<FastTileEvent>,
+) {
     for event in events.iter() {
         if let PickingEvent::Clicked(e) = event {
-            let color: Color = tile_query.get_mut(*e).expect("Failed to find tile color").color;
-            tile_query.get_mut(*e).expect("Failed to find tile color").color = if color==Color::BLACK {Color::WHITE} else {Color::BLACK};
+            click_event_writer.send(FastTileEvent(*e, None));
         }
         if let PickingEvent::Hover(HoverEvent::JustEntered(e)) = event {
             if mouse.pressed(MouseButton::Left) {
-                let mut tile = tile_query.get_mut(*e).expect("Failed to find tile color");
-                tile.color = Color::BLACK;
-
+                click_event_writer.send(FastTileEvent(*e, Some(Color::BLACK)));
             }
         }
         
     }
 }
-
-/*
-Visual tiles will be child components of the gamestate
-
-*/
