@@ -1,16 +1,23 @@
 #![allow(non_snake_case)]
 
+use std::borrow::BorrowMut;
+
 use bevy::prelude::*;
 use bevy_mod_picking::{DefaultPickingPlugins, PickingCameraBundle, PickableBundle, PickingEvent, HoverEvent};
+use grid_update::*;
 use gui::*;
 
 mod gui;
+mod grid_update;
 
 const TILE_SIZE: f32 = 22.;
 const GRID_SIZE: usize = 32;
 
 fn main() {
     App::new()
+        .add_event::<TileColorEvent>()
+        .init_resource::<TileColorUpdateList>()
+        .init_resource::<UpdateTimer>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             window: WindowDescriptor {
                 title: "Pathfinding".to_string(),
@@ -24,19 +31,22 @@ fn main() {
         .add_plugins(DefaultPickingPlugins)
         .add_plugin(bevy_egui:: EguiPlugin)
         .add_startup_system(init)
-        .add_system(events)
+        .add_system(allow_clicking)
         .add_system(gui)
+        .add_system(save_tile_color_events)
+        .add_system(process_tile_color_events)
+        .add_system(process_tile_click_events)
         .run();
 }
 
-fn init(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, windows: Res<Windows>) {
+fn init(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, windows: Res<Windows>, mut list: ResMut<TileColorUpdateList>) {
     let window = windows.get_primary().expect("Failed to find primary window");
     commands.spawn((Camera2dBundle::default(), PickingCameraBundle::default()));
 
     let mut entity_grid: Vec<Vec<TileRef>> = vec![];
     //create the game state and all color tiles as children
     use bevy::math::*;
-    let game_state_entity = commands.spawn(SpriteBundle {
+    commands.spawn(SpriteBundle {
             transform: Transform::from_translation(vec3(-1.*window.width()/2. + TILE_SIZE, -1.*window.height()/2. + TILE_SIZE, 0.)),
             ..default()
         })
@@ -68,30 +78,28 @@ fn init(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, windows: Res<W
             }
         }).insert(GameState {
             grid: entity_grid
-        }).id();
-
-
+        });
 }
 
+
 #[derive(Component)]
-struct GameState{
+pub struct GameState{
     grid: Vec<Vec<TileRef>>
 }
 
-struct TileRef {
+pub struct TileRef {
     entity: Entity,
     position: (usize, usize),
     tile_type: TileType
 }
-
-enum TileType {
+pub enum TileType {
     Start, End, Wall, None
 }
 
 #[derive(Component)]
-struct GridTile;
+pub struct GridTile;
 
-fn events(mut events: EventReader<PickingEvent>, mut tile_query: Query<&mut Sprite, With<GridTile>>, mouse: Res<Input<MouseButton>>) {
+fn allow_clicking(mut events: EventReader<PickingEvent>, mut tile_query: Query<&mut Sprite, With<GridTile>>, mouse: Res<Input<MouseButton>>) {
     for event in events.iter() {
         if let PickingEvent::Clicked(e) = event {
             let color: Color = tile_query.get_mut(*e).expect("Failed to find tile color").color;
@@ -99,7 +107,9 @@ fn events(mut events: EventReader<PickingEvent>, mut tile_query: Query<&mut Spri
         }
         if let PickingEvent::Hover(HoverEvent::JustEntered(e)) = event {
             if mouse.pressed(MouseButton::Left) {
-                tile_query.get_mut(*e).expect("Failed to find tile color").color = Color::BLACK;
+                let mut tile = tile_query.get_mut(*e).expect("Failed to find tile color");
+                tile.color = Color::BLACK;
+
             }
         }
         
