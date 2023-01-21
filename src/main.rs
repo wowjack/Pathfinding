@@ -5,19 +5,23 @@ use bevy::prelude::*;
 use bevy_mod_picking::{DefaultPickingPlugins, PickingCameraBundle, PickableBundle, PickingEvent, HoverEvent};
 use grid_update::*;
 use gui::*;
+use solver::*;
 
 mod gui;
 mod grid_update;
+mod solver;
 
-const TILE_SIZE: f32 = 22.;
+const TILE_SIZE: f32 = 23.4;
 const GRID_SIZE: usize = 32;
 
 fn main() {
     App::new()
         .add_event::<FastTileEvent>()
         .add_event::<SlowTileEvent>()
+        .add_event::<StartSolveEvent>()
         .init_resource::<SlowTileUpdateBuffer>()
         .init_resource::<UpdateTimer>()
+        .init_resource::<Algorithm>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             window: WindowDescriptor {
                 title: "Pathfinding".to_string(),
@@ -36,10 +40,16 @@ fn main() {
         .add_system(save_tile_color_events)
         .add_system(process_fast_tile_events)
         .add_system(process_slow_tile_events)
+        .add_system(start_solve)
         .run();
 }
 
-fn init(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, windows: Res<Windows>) {
+fn init(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    windows: Res<Windows>,
+    mut event_writer: EventWriter<FastTileEvent>
+) {
     let window = windows.get_primary().expect("Failed to find primary window");
     commands.spawn((Camera2dBundle::default(), PickingCameraBundle::default()));
 
@@ -56,7 +66,7 @@ fn init(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, windows: Res<W
                 for j in 0..GRID_SIZE {
                     let e = builder.spawn(SpriteBundle {
                         transform: Transform {
-                            translation: vec3(i as f32*(TILE_SIZE+2.), j as f32*(TILE_SIZE+2.), 0.),
+                            translation: vec3(i as f32*(TILE_SIZE+0.5), j as f32*(TILE_SIZE+0.5), 0.),
                             scale: vec3(TILE_SIZE, TILE_SIZE, 1.),
                             ..default()
                         },
@@ -68,36 +78,50 @@ fn init(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, windows: Res<W
                     })
                     .insert(meshes.add(Mesh::from(shape::Quad::default())))
                     .insert(PickableBundle::default())
-                    .insert(GridTile).id();
+                    .insert(GridTile(i, j)).id();
                     entity_grid[i].push(TileRef {
                         entity: e,
                         position: (i, j),
-                        tile_type: TileType::None
+                        tile_type: TileType::None,
+                        parent: None
                     });
                 }
             }
+            entity_grid[1][1].tile_type = TileType::Start;
+            event_writer.send(FastTileEvent(entity_grid[1][1].entity, Some(Color::GREEN)));
+            entity_grid[GRID_SIZE-2][GRID_SIZE-2].tile_type = TileType::End;
+            event_writer.send(FastTileEvent(entity_grid[GRID_SIZE-2][GRID_SIZE-2].entity, Some(Color::RED)));
+
         }).insert(GameState {
-            grid: entity_grid
+            grid: entity_grid,
+            start: (1, 1),
+            end: (GRID_SIZE-2, GRID_SIZE-2)
         });
 }
 
 
 #[derive(Component)]
 pub struct GameState{
-    grid: Vec<Vec<TileRef>>
+    grid: Vec<Vec<TileRef>>,
+    start: (usize, usize),
+    end: (usize, usize)
 }
 
+#[derive(Clone, Copy)]
 pub struct TileRef {
     entity: Entity,
     position: (usize, usize),
-    tile_type: TileType
+    tile_type: TileType,
+    parent: Option<(usize, usize)>,
 }
+
+#[derive(Clone, Copy)]
 pub enum TileType {
     Start, End, Wall, None
 }
 
 #[derive(Component)]
-pub struct GridTile;
+pub struct GridTile(usize, usize);
 
 fn allow_clicking(
     mut events: EventReader<PickingEvent>,

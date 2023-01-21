@@ -1,9 +1,14 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext};
 
+use crate::{solver::StartSolveEvent, grid_update::UpdateTimer};
+
 
 pub fn gui(
     mut ctx: ResMut<EguiContext>,
+    mut solve_event_writer: EventWriter<StartSolveEvent>,
+    mut update_timer: ResMut<UpdateTimer>,
+    mut millis: Local<u64>
 ) {
     use crate::gui::egui::TextStyle::{Heading, Body, Monospace, Small, Button};
     use crate::gui::egui::FontFamily::{Proportional};
@@ -23,6 +28,14 @@ pub fn gui(
         .show(ctx.ctx_mut(), |ui| {
             ui.heading("Pathfinding Algorithm Viewer");
             ui.small("Jack Kingham");
+
+            ui.vertical_centered(|ui| {
+                if ui.button("Start Solve").clicked() {solve_event_writer.send(StartSolveEvent)}
+                let range_slider = ui.add(egui::Slider::new(&mut *millis, 1..=1000));
+                if range_slider.drag_started() || range_slider.changed() {
+                    update_timer.0.set_duration(std::time::Duration::from_millis(*millis));
+                }
+            });
         }
     );
 }

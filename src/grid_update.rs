@@ -2,7 +2,7 @@ use std::{collections::{VecDeque}};
 
 use bevy::prelude::*;
 
-use crate::{GridTile};
+use crate::{GridTile, GameState, TileType};
 
 
 /*
@@ -35,10 +35,10 @@ pub fn save_tile_color_events(mut tile_update_list: ResMut<SlowTileUpdateBuffer>
 }
 
 #[derive(Resource)]
-pub struct UpdateTimer(Timer);
+pub struct UpdateTimer(pub Timer);
 impl Default for UpdateTimer {
     fn default() -> Self {
-        Self(Timer::new(std::time::Duration::from_millis(500), TimerMode::Repeating))
+        Self(Timer::new(std::time::Duration::from_millis(1), TimerMode::Repeating))
     }
 }
 pub fn process_slow_tile_events(mut tile_query: Query<&mut Sprite, With<GridTile>>, mut tile_update_list: ResMut<SlowTileUpdateBuffer>, time: Res<Time>, mut update_timer: ResMut<UpdateTimer>) {
@@ -54,12 +54,21 @@ pub fn process_slow_tile_events(mut tile_query: Query<&mut Sprite, With<GridTile
     }
 }
 
-pub fn process_fast_tile_events(mut tile_query: Query<&mut Sprite, With<GridTile>>, mut event_reader: EventReader<FastTileEvent>) {
+pub fn process_fast_tile_events(mut tile_query: Query<(&mut Sprite, &GridTile)>, mut event_reader: EventReader<FastTileEvent>, mut game_query: Query<&mut GameState>) {
     for event in event_reader.iter() {
-        let c = tile_query.get(event.0).unwrap().color;
-        tile_query.get_mut(event.0).unwrap().color = match event.1 {
+        let mut t = tile_query.get_mut(event.0).unwrap();
+        let c = t.0.color.clone();
+        t.0.color = match event.1 {
             Some(c) => c,
             None => if c == Color::BLACK {Color::WHITE} else {Color::BLACK}
         };
+        //Set tile type in game state TileRef grid
+        let mut game = game_query.get_single_mut().unwrap();
+        if t.0.color == Color::BLACK {
+            game.grid[t.1.0][t.1.1].tile_type = TileType::Wall; 
+        } else if t.0.color == Color::WHITE {
+            game.grid[t.1.0][t.1.1].tile_type = TileType::None; 
+        }
     }
 }
+
