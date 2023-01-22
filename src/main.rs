@@ -2,7 +2,7 @@
 
 
 use bevy::prelude::*;
-use bevy_mod_picking::{DefaultPickingPlugins, PickingCameraBundle, PickableBundle, PickingEvent, HoverEvent};
+use bevy_mod_picking::{DefaultPickingPlugins, PickingCameraBundle, PickableBundle};
 use grid_update::*;
 use gui::*;
 use solver::*;
@@ -31,11 +31,11 @@ fn main() {
             },
             ..default()
         }))
-        .insert_resource(ClearColor(Color::rgb(0.7, 0.7, 0.7)))
+        .insert_resource(ClearColor(Color::rgb(0.2, 0.2, 0.2)))
         .add_plugins(DefaultPickingPlugins)
         .add_plugin(bevy_egui:: EguiPlugin)
         .add_startup_system(init)
-        .add_system(allow_clicking)
+        .add_system(process_click_events)
         .add_system(gui)
         .add_system(save_tile_color_events)
         .add_system(process_fast_tile_events)
@@ -71,7 +71,7 @@ fn init(
                             ..default()
                         },
                         sprite: Sprite {
-                            color: Color::WHITE,
+                            color: Color::hex("e0fbfc").unwrap(),
                             ..default()
                         },
                         ..default()
@@ -88,11 +88,11 @@ fn init(
                 }
             }
             entity_grid[1][1].tile_type = TileType::Start;
-            event_writer.send(FastTileEvent(entity_grid[1][1].entity, Some(Color::LIME_GREEN)));
+            event_writer.send(FastTileEvent(entity_grid[1][1].entity, Some(Color::SEA_GREEN)));
             entity_grid[GRID_SIZE-2][GRID_SIZE-2].tile_type = TileType::End;
             event_writer.send(FastTileEvent(entity_grid[GRID_SIZE-2][GRID_SIZE-2].entity, Some(Color::RED)));
 
-        }).insert(GameState {
+        }).insert(GridState {
             grid: entity_grid,
             start: (1, 1),
             end: (GRID_SIZE-2, GRID_SIZE-2)
@@ -101,7 +101,7 @@ fn init(
 
 
 #[derive(Component)]
-pub struct GameState{
+pub struct GridState{
     grid: Vec<Vec<TileRef>>,
     start: (usize, usize),
     end: (usize, usize)
@@ -123,20 +123,3 @@ pub enum TileType {
 #[derive(Component)]
 pub struct GridTile(usize, usize);
 
-fn allow_clicking(
-    mut events: EventReader<PickingEvent>,
-    mouse: Res<Input<MouseButton>>,
-    mut click_event_writer: EventWriter<FastTileEvent>,
-) {
-    for event in events.iter() {
-        if let PickingEvent::Clicked(e) = event {
-            click_event_writer.send(FastTileEvent(*e, None));
-        }
-        if let PickingEvent::Hover(HoverEvent::JustEntered(e)) = event {
-            if mouse.pressed(MouseButton::Left) {
-                click_event_writer.send(FastTileEvent(*e, Some(Color::BLACK)));
-            }
-        }
-        
-    }
-}
