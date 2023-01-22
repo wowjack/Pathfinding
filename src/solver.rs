@@ -2,7 +2,7 @@ use std::usize;
 
 use bevy::prelude::*;
 
-use crate::{grid_update::{SlowTileUpdateBuffer, SlowTileEvent}, TileRef, GridState, TileType, GRID_SIZE};
+use crate::{grid_update::{SlowTileUpdateBuffer, SlowTileEvent}, TileRef, GridState, TileType, GRID_SIZE, ColorPalette};
 
 #[derive(Resource, Default)]
 pub enum Algorithm {
@@ -11,18 +11,18 @@ pub enum Algorithm {
     Dijkstras,
 }
 
-pub fn start_solve(alg: &Res<Algorithm>, buffer: &mut SlowTileUpdateBuffer, game: &mut GridState){
-    get_alg(&alg)(buffer, game);
+pub fn start_solve(alg: &Res<Algorithm>, buffer: &mut SlowTileUpdateBuffer, game: &mut GridState, colors: &ColorPalette){
+    get_alg(&alg)(buffer, game, colors);
 }
 
-pub fn get_alg(alg: &Algorithm) ->  fn(&mut SlowTileUpdateBuffer, &mut GridState) {
+pub fn get_alg(alg: &Algorithm) ->  fn(&mut SlowTileUpdateBuffer, &mut GridState, &ColorPalette) {
     match alg {
         Algorithm::AStar => a_star,
         Algorithm::Dijkstras => dijkstras,
     }
 }
 
-fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState) {
+fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState, colors: &ColorPalette) {
     //d = distance from start to tile
     //h = estimated movement cost from tile to end. Read about different metrics
     //f = d + h
@@ -55,7 +55,7 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState) 
                         let mut t = game_state.grid[p.0][p.1];
                         loop {
                             if let TileType::Start = t.tile_type {break}
-                            update_buffer.0.push_back(vec![SlowTileEvent(t.entity, Color::hex("ee6c4d").unwrap())]);
+                            update_buffer.0.push_back(vec![SlowTileEvent(t.entity, colors.path)]);
                             p = t.parent.expect(&format!("Tile {:?} has no parent.", t.position));
                             t = game_state.grid[p.0][p.1];
                         }
@@ -93,7 +93,7 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState) 
                         if !in_open {
                             game_state.grid[(tile.0.position.0 as i32+i) as usize][(tile.0.position.1 as i32+j) as usize].parent = Some(tile.0.position);
                             open_list.push(ListItem(neighbor, d, h));
-                            event_list.push(SlowTileEvent(neighbor.entity, Color::hex("3d5a80").unwrap()));
+                            event_list.push(SlowTileEvent(neighbor.entity, colors.open));
                         }
                     },
                     _ => continue,
@@ -103,7 +103,7 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState) 
         //d) add the tile to the closed list 
         closed_list.push(tile.clone());
         if let TileType::None = tile.0.tile_type {
-            event_list.push(SlowTileEvent(tile.0.entity, Color::hex("98c1d9").unwrap()));
+            event_list.push(SlowTileEvent(tile.0.entity, colors.closed));
         };
         update_buffer.0.push_back(event_list);
        
@@ -114,7 +114,7 @@ fn heuristic((ax, ay): (usize, usize), (bx, by): (usize, usize)) -> f32 {
     return ((ax as f32 - bx as f32).powi(2) + (ay as f32 - by as f32).powi(2)).sqrt();
 }
 
-fn dijkstras(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState) {
+fn dijkstras(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState, colors: &ColorPalette) {
 
 }
 

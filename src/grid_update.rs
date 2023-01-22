@@ -3,7 +3,7 @@ use std::{collections::{VecDeque}};
 use bevy::prelude::*;
 use bevy_mod_picking::{PickingEvent, HoverEvent};
 
-use crate::{GridTile, GridState, TileType, solver::{Algorithm, start_solve}, GRID_SIZE};
+use crate::{GridTile, GridState, TileType, solver::{Algorithm, start_solve}, GRID_SIZE, ColorPalette};
 
 /*
 Functions to read events from the solver system and write the changes to the tiles
@@ -59,19 +59,24 @@ pub fn process_slow_tile_events(mut tile_query: Query<&mut Sprite, With<GridTile
     }
 }
 
-pub fn process_fast_tile_events(mut tile_query: Query<(&mut Sprite, &GridTile)>, mut event_reader: EventReader<FastTileEvent>, mut grid_query: Query<&mut GridState>) {
+pub fn process_fast_tile_events(
+    mut tile_query: Query<(&mut Sprite, &GridTile)>,
+    mut event_reader: EventReader<FastTileEvent>,
+    mut grid_query: Query<&mut GridState>,
+    colors: Res<ColorPalette>
+) {
     for event in event_reader.iter() {
         let mut t = tile_query.get_mut(event.0).unwrap();
         let c = t.0.color.clone();
         t.0.color = match event.1 {
             Some(c) => c,
-            None => if c == Color::hex("293241").unwrap() {Color::hex("e0fbfc").unwrap()} else {Color::hex("293241").unwrap()}
+            None => if c == colors.wall {colors.bg} else {colors.wall}
         };
         //Set tile type in game state TileRef grid
         let mut game = grid_query.get_single_mut().unwrap();
-        if t.0.color == Color::hex("293241").unwrap() {
+        if t.0.color == colors.wall {
             game.grid[t.1.0][t.1.1].tile_type = TileType::Wall; 
-        } else if t.0.color == Color::hex("e0fbfc").unwrap() {
+        } else if t.0.color == colors.bg {
             game.grid[t.1.0][t.1.1].tile_type = TileType::None; 
         }
     }
@@ -82,9 +87,11 @@ pub fn process_grid_events(
     alg: Res<Algorithm>,
     mut tile_sprite_query: Query<&mut Sprite, With<GridTile>>,
     mut game_query: Query<&mut GridState>,
-    mut buffer: ResMut<SlowTileUpdateBuffer>
+    mut buffer: ResMut<SlowTileUpdateBuffer>,
+    colors: Res<ColorPalette>
 ) {
-    let mut game = game_query.get_single_mut().unwrap();   
+    let mut game = game_query.get_single_mut().unwrap();
+    let colors = colors.as_ref();   
     for event in event_reader.iter() {
         match event {
             GridEvent::Clear => {
@@ -92,10 +99,10 @@ pub fn process_grid_events(
                     row.iter_mut().enumerate().for_each(|(j, tile_ref)| {
                         let mut sprite = tile_sprite_query.get_mut(tile_ref.entity).unwrap();
                         match tile_ref.tile_type {
-                            TileType::None => sprite.color = Color::hex("e0fbfc").unwrap(),
+                            TileType::None => sprite.color = colors.bg,
                             _ => (),
                         }
-                    })
+                    });
                 });
             },
             GridEvent::Reset => {
@@ -103,14 +110,14 @@ pub fn process_grid_events(
                 game.grid.iter_mut().enumerate().for_each(|(i, row)| {
                     row.iter_mut().enumerate().for_each(|(j, tile_ref)| {
                         let mut sprite = tile_sprite_query.get_mut(tile_ref.entity).unwrap();
-                        if i==j && i==1 {sprite.color = Color::SEA_GREEN; tile_ref.tile_type = TileType::Start}
-                        else if i==j && i==GRID_SIZE-2 {sprite.color = Color::RED; tile_ref.tile_type = TileType::End}
-                        else {sprite.color = Color::hex("e0fbfc").unwrap(); tile_ref.tile_type = TileType::None}
+                        if i==j && i==1 {sprite.color = colors.start; tile_ref.tile_type = TileType::Start}
+                        else if i==j && i==GRID_SIZE-2 {sprite.color = colors.end; tile_ref.tile_type = TileType::End}
+                        else {sprite.color = colors.bg; tile_ref.tile_type = TileType::None}
                     })
                 });
             },
             GridEvent::StartSolve => {
-                start_solve(&alg, buffer.as_mut(), game.as_mut());
+                start_solve(&alg, buffer.as_mut(), game.as_mut(), colors);
             }
         }
     }
@@ -121,12 +128,13 @@ pub fn process_click_events(
     mouse: Res<Input<MouseButton>>,
     mut click_event_writer: EventWriter<FastTileEvent>,
     tile_query: Query<(&Sprite, &GridTile)>,
-    mut hover_color: Local<Color>
+    mut hover_color: Local<Color>,
+    colors: Res<ColorPalette>
 ) {
     for event in events.iter() {
         match event {
             PickingEvent::Clicked(e) => {
-                *hover_color = if tile_query.get(*e).unwrap().0.color==Color::hex("293241").unwrap() {Color::hex("e0fbfc").unwrap()} else {Color::hex("293241").unwrap()};
+                *hover_color = if tile_query.get(*e).unwrap().0.color==colors.wall {colors.bg} else {colors.wall};
                 click_event_writer.send(FastTileEvent(*e, Some(*hover_color)));
             },
             PickingEvent::Hover(HoverEvent::JustEntered(e)) => {

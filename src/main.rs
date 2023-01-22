@@ -22,6 +22,7 @@ fn main() {
         .init_resource::<SlowTileUpdateBuffer>()
         .init_resource::<UpdateTimer>()
         .init_resource::<Algorithm>()
+        .init_resource::<ColorPalette>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             window: WindowDescriptor {
                 title: "Pathfinding".to_string(),
@@ -48,7 +49,8 @@ fn init(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     windows: Res<Windows>,
-    mut event_writer: EventWriter<FastTileEvent>
+    mut event_writer: EventWriter<FastTileEvent>,
+    colors: Res<ColorPalette>
 ) {
     let window = windows.get_primary().expect("Failed to find primary window");
     commands.spawn((Camera2dBundle::default(), PickingCameraBundle::default()));
@@ -71,7 +73,7 @@ fn init(
                             ..default()
                         },
                         sprite: Sprite {
-                            color: Color::hex("e0fbfc").unwrap(),
+                            color: colors.bg.clone(),
                             ..default()
                         },
                         ..default()
@@ -88,9 +90,9 @@ fn init(
                 }
             }
             entity_grid[1][1].tile_type = TileType::Start;
-            event_writer.send(FastTileEvent(entity_grid[1][1].entity, Some(Color::SEA_GREEN)));
+            event_writer.send(FastTileEvent(entity_grid[1][1].entity, Some(colors.start)));
             entity_grid[GRID_SIZE-2][GRID_SIZE-2].tile_type = TileType::End;
-            event_writer.send(FastTileEvent(entity_grid[GRID_SIZE-2][GRID_SIZE-2].entity, Some(Color::RED)));
+            event_writer.send(FastTileEvent(entity_grid[GRID_SIZE-2][GRID_SIZE-2].entity, Some(colors.end)));
 
         }).insert(GridState {
             grid: entity_grid,
@@ -119,7 +121,29 @@ pub struct TileRef {
 pub enum TileType {
     Start, End, Wall, None
 }
-
 #[derive(Component)]
 pub struct GridTile(usize, usize);
 
+#[derive(Resource, Clone, Copy)]
+pub struct ColorPalette {
+    pub bg: Color,
+    pub wall: Color,
+    pub open: Color,
+    pub closed: Color,
+    pub path: Color,
+    pub start: Color,
+    pub end: Color
+}
+impl Default for ColorPalette {
+    fn default() -> Self {
+        Self {
+            bg: Color::hex("e0fbfc").unwrap(),
+            wall: Color::hex("293241").unwrap(),
+            open: Color::hex("3d5a80").unwrap(),
+            closed: Color::hex("98c1d9").unwrap(),
+            path: Color::hex("ee6c4d").unwrap(),
+            start: Color::SEA_GREEN,
+            end: Color::RED,
+        }
+    }
+}
