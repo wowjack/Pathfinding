@@ -4,8 +4,6 @@ use bevy::prelude::*;
 
 use crate::{grid_update::{SlowTileUpdateBuffer, SlowTileEvent}, TileRef, GameState, TileType, GRID_SIZE};
 
-pub struct StartSolveEvent;
-
 #[derive(Resource, Default)]
 pub enum Algorithm {
     #[default]
@@ -13,27 +11,22 @@ pub enum Algorithm {
     Dijkstras,
 }
 
-pub fn start_solve(event_reader: EventReader<StartSolveEvent>, alg: Res<Algorithm>, mut buffer: ResMut<SlowTileUpdateBuffer>, mut game_query: Query<&mut GameState>){
-    if !event_reader.is_empty() {
-        let game = game_query.get_single_mut().unwrap();
-        let buf = buffer.as_mut();
-        get_alg(&alg)(buf, game);
-    }
-    event_reader.clear();
+pub fn start_solve(alg: &Res<Algorithm>, buffer: &mut SlowTileUpdateBuffer, game: &mut GameState){
+    get_alg(&alg)(buffer, game);
 }
 
-pub fn get_alg(alg: &Algorithm) ->  fn(&mut SlowTileUpdateBuffer, Mut<GameState>) {
+pub fn get_alg(alg: &Algorithm) ->  fn(&mut SlowTileUpdateBuffer, &mut GameState) {
     match alg {
         Algorithm::AStar => a_star,
         Algorithm::Dijkstras => dijkstras,
     }
 }
 
-fn a_star(update_buffer: &mut SlowTileUpdateBuffer, mut game_state: Mut<GameState>) {
-    //g = movement cost from start to tile
+fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GameState) {
+    //d = distance from start to tile
     //h = estimated movement cost from tile to end. Read about different metrics
-    //f = g + h
-    //                        g    h
+    //f = d + h
+    //                        d    h
     #[derive(Clone)]
     struct ListItem(TileRef, f32, f32);
     let mut open_list = vec![ListItem(game_state.grid[1][1].clone(), 0., 0.)];
@@ -48,10 +41,7 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, mut game_state: Mut<GameStat
 
         //b) pop the tile off the open list and add to closed list
         let tile = open_list.remove(index);
-        closed_list.push(tile.clone());
-        if let TileType::None = tile.0.tile_type {
-            event_list.push(SlowTileEvent(tile.0.entity, Color::BLUE));
-        };
+        println!("Observing tile {:?}", tile.0.position);
 
         //c) for each neighbor
         for i in -1..=1 {
@@ -76,31 +66,39 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, mut game_state: Mut<GameStat
                         return;
                     },
                     TileType::None => {
-                        //skip if tile is already in closed
-                        let mut in_closed = false;
-                        for check_tile in closed_list.iter() {
-                            if neighbor.entity == check_tile.0.entity {in_closed=true; break;}
-                        }
-                        if in_closed {continue}
-
-                        let g = tile.1 + if i.abs()>0 && j.abs()>0 {std::f32::consts::SQRT_2} else {1.};
+                        let d = tile.1 + if i.abs()>0 && j.abs()>0 {std::f32::consts::SQRT_2} else {1.};
                         let h = heuristic(neighbor.position, game_state.end);
 
-                        let mut in_open = false;
-                        for check_tile in open_list.iter_mut() {
+                        println!("\ttile {:?}, distance: {} \theuristic: {}", neighbor.position, d, h);
+
+                        //skip if tile is already in closed
+                        let mut in_closed = false;
+                        for check_tile in closed_list.iter_mut() {
                             if neighbor.entity == check_tile.0.entity {
-                                if g+h < check_tile.1+check_tile.2 {
-                                    check_tile.1 = g;
-                                    check_tile.2 = h;
-                                    check_tile.0.parent = tile.0.parent;
-                                }
-                                in_open = true;
+                                println!("\tTile is already in closed list. distance: {} heuristic: {}", check_tile.1, check_tile.2);
+                                in_closed=true;
                                 break;
                             }
                         }
+                        if in_closed {continue}
+
+                        let mut in_open = false;
+                        open_list.iter_mut().for_each(|check_tile| {
+                            if neighbor.entity == check_tile.0.entity {
+                                println!("\tTile is already in open list. distance: {} heuristic: {}", check_tile.1, check_tile.2);
+                                if d < check_tile.1 {
+                                    check_tile.1 = d;
+                                    check_tile.2 = h;
+                                    println!("\tTile updated in open list");
+                                }
+                                in_open = true;
+                                return;
+                            }
+                        });
                         if !in_open {
+                            println!("\tPushing tile to open list");
                             game_state.grid[(tile.0.position.0 as i32+i) as usize][(tile.0.position.1 as i32+j) as usize].parent = Some(tile.0.position);
-                            open_list.push(ListItem(neighbor, g, h));
+                            open_list.push(ListItem(neighbor, d, h));
                             event_list.push(SlowTileEvent(neighbor.entity, Color::ORANGE));
                         }
                     },
@@ -108,20 +106,20 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, mut game_state: Mut<GameStat
                 }
             }
         }
+        closed_list.push(tile.clone());
+        if let TileType::None = tile.0.tile_type {
+            event_list.push(SlowTileEvent(tile.0.entity, Color::BLUE));
+        };
         update_buffer.0.push_back(event_list);
        
     }
 }
 
 fn heuristic((ax, ay): (usize, usize), (bx, by): (usize, usize)) -> f32 {
-    let x_dif = (ax as i32-bx as i32).abs();
-    let y_dif = (ay as i32-by as i32).abs();
-    let diagonal_distance = std::f32::consts::SQRT_2*(x_dif.min(y_dif) as f32);
-    let straight_distance = (x_dif.max(y_dif) - x_dif.min(y_dif)) as f32;
-    return diagonal_distance+straight_distance;
+    return ((ax as f32 - bx as f32).powi(2) + (ay as f32 - by as f32).powi(2)).sqrt();
 }
 
-fn dijkstras(update_buffer: &mut SlowTileUpdateBuffer, game_state: Mut<GameState>) {
+fn dijkstras(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GameState) {
 
 }
 

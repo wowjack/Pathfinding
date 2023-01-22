@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext};
 
-use crate::{solver::StartSolveEvent, grid_update::UpdateTimer};
+use crate::grid_update::{UpdateTimer, GridEvent};
 
 
 pub fn gui(
     mut ctx: ResMut<EguiContext>,
-    mut solve_event_writer: EventWriter<StartSolveEvent>,
+    mut grid_event_writer: EventWriter<GridEvent>,
     mut update_timer: ResMut<UpdateTimer>,
     mut millis: Local<u64>
 ) {
@@ -30,10 +30,16 @@ pub fn gui(
             ui.small("Jack Kingham");
 
             ui.vertical_centered(|ui| {
-                if ui.button("Start Solve").clicked() {solve_event_writer.send(StartSolveEvent)}
+                if ui.button("Start Solve").clicked() {grid_event_writer.send(GridEvent::StartSolve)}
                 let range_slider = ui.add(egui::Slider::new(&mut *millis, 1..=1000));
                 if range_slider.drag_started() || range_slider.changed() {
                     update_timer.0.set_duration(std::time::Duration::from_millis(*millis));
+                }
+                let clear_button = ui.button("Clear");
+                if clear_button.clicked() {
+                    grid_event_writer.send(GridEvent::Clear);
+                } else if clear_button.double_clicked() {
+                    grid_event_writer.send(GridEvent::Reset);
                 }
             });
         }

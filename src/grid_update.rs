@@ -2,7 +2,7 @@ use std::{collections::{VecDeque}};
 
 use bevy::prelude::*;
 
-use crate::{GridTile, GameState, TileType};
+use crate::{GridTile, GameState, TileType, solver::{Algorithm, start_solve}, GRID_SIZE};
 
 
 /*
@@ -21,6 +21,11 @@ pub struct SlowTileEvent(pub Entity, pub Color);
 
 #[derive(Clone)]
 pub struct FastTileEvent(pub Entity, pub Option<Color>);
+
+#[derive(Clone)]
+pub enum GridEvent {
+    Reset, Clear, StartSolve
+}
 
 //Reads all the color change events for a frame and consolidates them into an event vec
 pub fn save_tile_color_events(mut tile_update_list: ResMut<SlowTileUpdateBuffer>, mut event_reader: EventReader<SlowTileEvent>) {
@@ -68,6 +73,46 @@ pub fn process_fast_tile_events(mut tile_query: Query<(&mut Sprite, &GridTile)>,
             game.grid[t.1.0][t.1.1].tile_type = TileType::Wall; 
         } else if t.0.color == Color::WHITE {
             game.grid[t.1.0][t.1.1].tile_type = TileType::None; 
+        }
+    }
+}
+
+pub fn process_grid_events(
+    mut event_reader: EventReader<GridEvent>,
+    alg: Res<Algorithm>,
+    mut tile_sprite_query: Query<&mut Sprite, With<GridTile>>,
+    mut game_query: Query<&mut GameState>,
+    mut buffer: ResMut<SlowTileUpdateBuffer>
+) {
+    let mut game = game_query.get_single_mut().unwrap();   
+    for event in event_reader.iter() {
+        match event {
+            GridEvent::Clear => {
+                println!("Clear");
+                game.grid.iter_mut().enumerate().for_each(|(i, row)| {
+                    row.iter_mut().enumerate().for_each(|(j, tile_ref)| {
+                        let mut sprite = tile_sprite_query.get_mut(tile_ref.entity).unwrap();
+                        if ![Color::BLACK, Color::LIME_GREEN, Color::RED].contains(&sprite.color) {
+                            sprite.color = Color::WHITE;
+                        }
+                    })
+                });
+            },
+            GridEvent::Reset => {
+                println!("Reset");
+                game.end = (GRID_SIZE-2, GRID_SIZE-2); game.start = (1, 1);
+                game.grid.iter_mut().enumerate().for_each(|(i, row)| {
+                    row.iter_mut().enumerate().for_each(|(j, tile_ref)| {
+                        let mut sprite = tile_sprite_query.get_mut(tile_ref.entity).unwrap();
+                        if i==j && i==1 {sprite.color = Color::LIME_GREEN; tile_ref.tile_type = TileType::Start}
+                        else if i==j && i==GRID_SIZE-2 {sprite.color = Color::RED; tile_ref.tile_type = TileType::End}
+                        else {sprite.color = Color::WHITE; tile_ref.tile_type = TileType::None}
+                    })
+                });
+            },
+            GridEvent::StartSolve => {
+                start_solve(&alg, buffer.as_mut(), game.as_mut());
+            }
         }
     }
 }

@@ -18,7 +18,7 @@ fn main() {
     App::new()
         .add_event::<FastTileEvent>()
         .add_event::<SlowTileEvent>()
-        .add_event::<StartSolveEvent>()
+        .add_event::<GridEvent>()
         .init_resource::<SlowTileUpdateBuffer>()
         .init_resource::<UpdateTimer>()
         .init_resource::<Algorithm>()
@@ -40,7 +40,7 @@ fn main() {
         .add_system(save_tile_color_events)
         .add_system(process_fast_tile_events)
         .add_system(process_slow_tile_events)
-        .add_system(start_solve)
+        .add_system(process_grid_events)
         .run();
 }
 
@@ -88,7 +88,7 @@ fn init(
                 }
             }
             entity_grid[1][1].tile_type = TileType::Start;
-            event_writer.send(FastTileEvent(entity_grid[1][1].entity, Some(Color::GREEN)));
+            event_writer.send(FastTileEvent(entity_grid[1][1].entity, Some(Color::LIME_GREEN)));
             entity_grid[GRID_SIZE-2][GRID_SIZE-2].tile_type = TileType::End;
             event_writer.send(FastTileEvent(entity_grid[GRID_SIZE-2][GRID_SIZE-2].entity, Some(Color::RED)));
 
