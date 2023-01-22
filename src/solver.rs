@@ -69,13 +69,10 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GameState) 
                         let d = tile.1 + if i.abs()>0 && j.abs()>0 {std::f32::consts::SQRT_2} else {1.};
                         let h = heuristic(neighbor.position, game_state.end);
 
-                        println!("\ttile {:?}, distance: {} \theuristic: {}", neighbor.position, d, h);
-
                         //skip if tile is already in closed
                         let mut in_closed = false;
                         for check_tile in closed_list.iter_mut() {
                             if neighbor.entity == check_tile.0.entity {
-                                println!("\tTile is already in closed list. distance: {} heuristic: {}", check_tile.1, check_tile.2);
                                 in_closed=true;
                                 break;
                             }
@@ -85,18 +82,16 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GameState) 
                         let mut in_open = false;
                         open_list.iter_mut().for_each(|check_tile| {
                             if neighbor.entity == check_tile.0.entity {
-                                println!("\tTile is already in open list. distance: {} heuristic: {}", check_tile.1, check_tile.2);
                                 if d < check_tile.1 {
                                     check_tile.1 = d;
                                     check_tile.2 = h;
-                                    println!("\tTile updated in open list");
+                                    game_state.grid[check_tile.0.position.0][check_tile.0.position.1].parent = Some(tile.0.position);
                                 }
                                 in_open = true;
                                 return;
                             }
                         });
                         if !in_open {
-                            println!("\tPushing tile to open list");
                             game_state.grid[(tile.0.position.0 as i32+i) as usize][(tile.0.position.1 as i32+j) as usize].parent = Some(tile.0.position);
                             open_list.push(ListItem(neighbor, d, h));
                             event_list.push(SlowTileEvent(neighbor.entity, Color::ORANGE));
