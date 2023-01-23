@@ -11,6 +11,25 @@ pub enum Algorithm {
     Dijkstras,
 }
 
+//d = distance from start to tile
+//h = estimated movement cost from tile to end. Read about different metrics
+//f = d + h
+//                        d    h
+#[derive(Clone)]
+struct ListItem {
+    pub tile: TileRef,
+    pub d: f32,
+    pub h: f32
+}
+impl ListItem {
+    pub fn new(tile: TileRef, d: f32, h: f32) -> Self {
+        Self {tile, d, h}
+    }
+}
+
+
+
+
 pub fn start_solve(alg: &Res<Algorithm>, buffer: &mut SlowTileUpdateBuffer, game: &mut GridState, colors: &ColorPalette){
     get_alg(&alg)(buffer, game, colors);
 }
@@ -23,13 +42,7 @@ pub fn get_alg(alg: &Algorithm) ->  fn(&mut SlowTileUpdateBuffer, &mut GridState
 }
 
 fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState, colors: &ColorPalette) {
-    //d = distance from start to tile
-    //h = estimated movement cost from tile to end. Read about different metrics
-    //f = d + h
-    //                        d    h
-    #[derive(Clone)]
-    struct ListItem(TileRef, f32, f32);
-    let mut open_list = vec![ListItem(game_state.grid[1][1].clone(), 0., 0.)];
+    let mut open_list = vec![ListItem::new(game_state.grid[1][1].clone(), 0., 0.)];
     let mut closed_list: Vec<ListItem> = Vec::new();
 
     while !open_list.is_empty() {
@@ -37,7 +50,7 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState, 
         let mut event_list: Vec<SlowTileEvent> = Vec::new();
 
         //a) find the tile with the least f in the open list
-        let (index, _) = open_list.iter().enumerate().min_by(|a, b| if a.1.1+a.1.2 < b.1.1+b.1.2 {std::cmp::Ordering::Less} else {std::cmp::Ordering::Greater}).unwrap();
+        let (index, _) = open_list.iter().enumerate().min_by(|a, b| if a.1.d+a.1.h < b.1.d+b.1.h {std::cmp::Ordering::Less} else {std::cmp::Ordering::Greater}).unwrap();
 
         //b) pop the tile off the open list
         let tile = open_list.remove(index);
@@ -45,13 +58,13 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState, 
         //c) for each neighbor
         for i in -1..=1 {
             for j in -1..=1 {            
-                if (i==0 && j==0) || tile.0.position.0 as i32+i<0 || tile.0.position.0 as i32+i>=GRID_SIZE as i32 || tile.0.position.1 as i32+j<0 || tile.0.position.1 as i32+j>=GRID_SIZE as i32 {continue}
-                let neighbor = game_state.grid[(tile.0.position.0 as i32+i) as usize][(tile.0.position.1 as i32+j) as usize];
+                if (i==0 && j==0) || tile.tile.position.0 as i32+i<0 || tile.tile.position.0 as i32+i>=GRID_SIZE as i32 || tile.tile.position.1 as i32+j<0 || tile.tile.position.1 as i32+j>=GRID_SIZE as i32 {continue}
+                let neighbor = game_state.grid[(tile.tile.position.0 as i32+i) as usize][(tile.tile.position.1 as i32+j) as usize];
                 match neighbor.tile_type {
                     //1) if the neighbor is the end tile, stop search and build shortest path
                     TileType::End => {
                         update_buffer.0.push_back(event_list);
-                        let mut p = tile.0.position;
+                        let mut p = tile.tile.position;
                         let mut t = game_state.grid[p.0][p.1];
                         loop {
                             if let TileType::Start = t.tile_type {break}
@@ -63,13 +76,13 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState, 
                     },
                     //2) compute d, h, and f for the neighbor node
                     TileType::None => {
-                        let d = tile.1 + if i.abs()>0 && j.abs()>0 {std::f32::consts::SQRT_2} else {1.};
+                        let d = tile.d + if i.abs()>0 && j.abs()>0 {std::f32::consts::SQRT_2} else {1.};
                         let h = heuristic(neighbor.position, game_state.end);
 
                         //3) if the tile  already exists in closed_list, skip
                         let mut in_closed = false;
                         for check_tile in closed_list.iter_mut() {
-                            if neighbor.entity == check_tile.0.entity {
+                            if neighbor.entity == check_tile.tile.entity {
                                 in_closed=true;
                                 break;
                             }
@@ -79,11 +92,11 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState, 
                         //4) if the tile already exists in open_list, update the tile's parent and d if necessary, then skip
                         let mut in_open = false;
                         open_list.iter_mut().for_each(|check_tile| {
-                            if neighbor.entity == check_tile.0.entity {
-                                if d < check_tile.1 {
-                                    check_tile.1 = d;
-                                    check_tile.2 = h;
-                                    game_state.grid[check_tile.0.position.0][check_tile.0.position.1].parent = Some(tile.0.position);
+                            if neighbor.entity == check_tile.tile.entity {
+                                if d < check_tile.d {
+                                    check_tile.d = d;
+                                    check_tile.h = h;
+                                    game_state.grid[check_tile.tile.position.0][check_tile.tile.position.1].parent = Some(tile.tile.position);
                                 }
                                 in_open = true;
                                 return;
@@ -91,8 +104,8 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState, 
                         });
                         //5) otherwise, add the tile to the open list
                         if !in_open {
-                            game_state.grid[(tile.0.position.0 as i32+i) as usize][(tile.0.position.1 as i32+j) as usize].parent = Some(tile.0.position);
-                            open_list.push(ListItem(neighbor, d, h));
+                            game_state.grid[(tile.tile.position.0 as i32+i) as usize][(tile.tile.position.1 as i32+j) as usize].parent = Some(tile.tile.position);
+                            open_list.push(ListItem::new(neighbor, d, h));
                             event_list.push(SlowTileEvent(neighbor.entity, colors.open));
                         }
                     },
@@ -102,8 +115,8 @@ fn a_star(update_buffer: &mut SlowTileUpdateBuffer, game_state: &mut GridState, 
         }
         //d) add the tile to the closed list 
         closed_list.push(tile.clone());
-        if let TileType::None = tile.0.tile_type {
-            event_list.push(SlowTileEvent(tile.0.entity, colors.closed));
+        if let TileType::None = tile.tile.tile_type {
+            event_list.push(SlowTileEvent(tile.tile.entity, colors.closed));
         };
         update_buffer.0.push_back(event_list);
        
