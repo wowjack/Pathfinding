@@ -11,15 +11,11 @@ pub enum Algorithm {
     Dijkstras,
 }
 
-//d = distance from start to tile
-//h = estimated movement cost from tile to end. Read about different metrics
-//f = d + h
-//                        d    h
 #[derive(Clone)]
 struct ListItem {
-    pub tile: TileRef,
-    pub d: f32,
-    pub h: f32
+    pub tile: TileRef, //COPY OF ASSOCIATED GRIDSTATE TILEREF, changes here will not modify the grid state
+    pub d: f32, //computed distance from start to tile
+    pub h: f32 //heuristic evaluation of distance from tile to end
 }
 impl ListItem {
     pub fn new(tile: TileRef, d: f32, h: f32) -> Self {
