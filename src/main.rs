@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+//Dragging start/end over end/start deletes one
 
 use bevy::prelude::*;
 use bevy_egui::EguiContext;

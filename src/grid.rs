@@ -45,19 +45,31 @@ impl Grid {
         });
     }
 
-    pub fn resize(entity: Entity, commands: &mut Commands, mesh_assets: &mut ResMut<Assets<Mesh>>, grid_query: &mut Query<&mut Grid>, new_size: usize) {
+    pub fn resize(
+        entity: Entity,
+        commands: &mut Commands,
+        mesh_assets: &mut ResMut<Assets<Mesh>>,
+        grid_query: &mut Query<&mut Grid>,
+        new_size: usize,
+        sprite_query: &mut Query<(&mut Sprite, &mut VisualTile)>
+    ) {
         if new_size < 5 {return}
         commands.entity(entity).despawn_descendants();
 
         let mut grid = grid_query.get_mut(entity).unwrap();
         let old_size = grid.grid_size;
-        grid.grid[old_size-2][old_size-2].tile_type = TileType::None;
         grid.grid.resize(new_size, vec![Tile::default(); new_size]);
         grid.grid.iter_mut().for_each(|row| {
             row.resize(new_size, Tile::default());
         });
         grid.grid_size = new_size;
-        grid.grid[new_size-2][new_size-2].tile_type = TileType::End;
+
+        //reset start and end tiles if they were deleted
+        if grid.start.0>=grid.grid_size || grid.start.1>=grid.grid_size {
+            grid.set_start((1, 1), sprite_query);
+        } else if grid.end.0>=grid.grid_size || grid.end.1>=grid.grid_size {
+            grid.set_end((new_size-2, new_size-2), sprite_query);
+        }
 
 
         let sprite_size = Grid::sprite_size(grid.visual_size, grid.grid_size);
@@ -81,6 +93,31 @@ impl Grid {
     pub fn reset() {
 
     }
+
+    //resets type and color of previous start and sets new start
+    pub fn set_start(&mut self, new: (usize, usize), sprite_query: &mut Query<(&mut Sprite, &mut VisualTile)>) {
+        if new.0>=self.grid_size || new.1>=self.grid_size {return;}
+        if self.start.0<self.grid_size && self.start.1<self.grid_size {
+            let (mut sprite, _visual_tile) = sprite_query.get_mut(self.grid[self.start.1][self.start.0].entity).unwrap();
+            self.grid[self.start.1][self.start.0].set_type(TileType::None, sprite.as_mut());
+        }
+        self.start = new;
+        let (mut sprite, _visual_tile) = sprite_query.get_mut(self.grid[self.start.1][self.start.0].entity).unwrap();
+        self.grid[self.start.1][self.start.0].set_type(TileType::Start, sprite.as_mut());
+    }
+
+    //resets type and color of previous end and sets new end
+    pub fn set_end(&mut self, new: (usize, usize), sprite_query: &mut Query<(&mut Sprite, &mut VisualTile)>) {
+        if new.0>self.grid_size || new.1>self.grid_size {return;}
+        if self.end.0<self.grid_size && self.end.1<self.grid_size {
+            let (mut sprite, _visual_tile) = sprite_query.get_mut(self.grid[self.end.1][self.end.0].entity).unwrap();
+            self.grid[self.end.1][self.end.0].set_type(TileType::None, sprite.as_mut());
+        }
+        self.end = new;
+        let (mut sprite, _visual_tile) = sprite_query.get_mut(self.grid[self.end.1][self.end.0].entity).unwrap();
+        self.grid[self.end.1][self.end.0].set_type(TileType::End, sprite.as_mut());
+    }
+
     //getters
     pub fn grid_size(&self) -> usize {self.grid_size}
     pub fn visual_size(&self) -> f32 {self.visual_size}
@@ -88,12 +125,19 @@ impl Grid {
 }
 
 
-pub fn process_grid_events(mut commands: Commands, mut event_reader: EventReader<GridEvent>, grid_entity_query: Query<Entity, With<Grid>>, mut grid_query: Query<&mut Grid>, mut mesh_assets: ResMut<Assets<Mesh>>) {
+pub fn process_grid_events(
+    mut commands: Commands,
+    mut event_reader: EventReader<GridEvent>,
+    grid_entity_query: Query<Entity, With<Grid>>,
+    mut grid_query: Query<&mut Grid>,
+    mut mesh_assets: ResMut<Assets<Mesh>>,
+    mut sprite_query: Query<(&mut Sprite, &mut VisualTile)>
+) {
     let grid_entity = grid_entity_query.get_single().unwrap();
     for event in event_reader.iter() {
         match *event {
             GridEvent::Resize(size) => {
-                Grid::resize(grid_entity, &mut commands, &mut mesh_assets, &mut grid_query, size);
+                Grid::resize(grid_entity, &mut commands, &mut mesh_assets, &mut grid_query, size, &mut sprite_query);
             },
             GridEvent::Clear => {
                 Grid::clear();
@@ -102,7 +146,7 @@ pub fn process_grid_events(mut commands: Commands, mut event_reader: EventReader
                 Grid::reset();
             },
             GridEvent::Solve => {
-                
+
             }
         }
     }

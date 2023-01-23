@@ -1,4 +1,5 @@
 
+use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 use bevy::math::*;
 use bevy_mod_picking::*;
@@ -51,26 +52,31 @@ impl Tile {
         }
     }
 
-    //Sets the Tile's type and sets the TisualTile's color
-    pub fn set_type_smart(
-        &mut self,
-        new_type: Option<TileType>,
-        mut sprite: &mut Sprite
-    ) {
+    //Sets the Tile's type and sets the VisualTile's color
+    pub fn set_type(&mut self, new_type: TileType, mut sprite: &mut Sprite) {
+        self.tile_type = new_type;
+        sprite.color = new_type.color();
+    }
+
+    //Swap tile between wall and none if new_type is None, do not overwrite start or end
+    pub fn click(&mut self, mut sprite: &mut Sprite, new_type: Option<TileType>) -> TileType {
         match new_type {
-            Some(t) => {
-                self.tile_type = t;
-                sprite.color = t.color();
-            },
             None => {
                 self.tile_type = match self.tile_type {
                     TileType::None => TileType::Wall,
                     TileType::Wall => TileType::None,
-                    _ => self.tile_type
+                    _ => self.tile_type 
                 };
-                sprite.color = self.tile_type.color();
             },
+            Some(new_type) => {
+                self.tile_type = match self.tile_type {
+                    TileType::Wall | TileType::None => new_type,
+                    _ => self.tile_type,
+                }
+            }
         }
+        sprite.color = self.tile_type.color();
+        return self.tile_type;
     }
 }
 
@@ -82,13 +88,6 @@ pub struct VisualTile {
 impl VisualTile {
     pub fn new(position: (usize, usize)) -> Self {
         Self {x: position.0, y: position.1}
-    }
-
-    pub fn set_color_smart(sprite: &mut Sprite, color: Option<Color>) {
-        sprite.color = match color {
-            Some(c) => c,
-            None => if sprite.color==WALL_COLOR {BG_COLOR} else {WALL_COLOR},
-        }
     }
 }
 
@@ -115,18 +114,35 @@ impl VisualTileBundle {
 
 pub fn process_tile_click_events(
     mut event_reader: EventReader<PickingEvent>,
-    mut sprite_query: Query<(&mut Sprite, &mut VisualTile), With<VisualTile>>,
-    mut grid_query: Query<&mut Grid>
+    mut sprite_query: Query<(&mut Sprite, &mut VisualTile)>,
+    mut grid_query: Query<&mut Grid>,
+    mut hover_tile_type: Local<TileType>,
+    mouse_state: Res<Input<MouseButton>>
 ) {
     let mut grid = grid_query.get_single_mut().unwrap();
     for event in event_reader.iter() {
-        match *event {
+        match event {
             PickingEvent::Clicked(e) => {
-                let (mut sprite, visual_tile) = sprite_query.get_mut(e).unwrap();
-                grid.grid[visual_tile.y][visual_tile.x].set_type_smart(None, sprite.as_mut());
-                
+                let (mut sprite, visual_tile) = sprite_query.get_mut(*e).unwrap();
+                *hover_tile_type = grid.grid[visual_tile.y][visual_tile.x].click(sprite.as_mut(), None);
             },
-            _ => ()
+            PickingEvent::Hover(hover_event) => {
+                match hover_event {
+                    HoverEvent::JustEntered(e) => {
+                        if !mouse_state.pressed(MouseButton::Left) {continue}
+                        let (mut sprite, visual_tile) = sprite_query.get_mut(*e).unwrap();
+                        match *hover_tile_type {
+                            TileType::End => grid.set_end((visual_tile.x, visual_tile.y), &mut sprite_query),
+                            TileType::Start => grid.set_start((visual_tile.x, visual_tile.y), &mut sprite_query),
+                            TileType::None | TileType::Wall => {
+                                grid.grid[visual_tile.y][visual_tile.x].click(sprite.as_mut(), Some(*hover_tile_type));
+                            }
+                        }
+                    },
+                    _ => ()
+                }
+            },
+            _ => (),
         }
     }
 }

@@ -7,7 +7,7 @@ use crate::grid::GridEvent;
 pub fn gui(
     mut ctx: ResMut<EguiContext>,
     mut grid_event_writer: EventWriter<GridEvent>,
-    mut grid_size: &mut usize,
+    grid_size: &mut usize,
 ) {
     use crate::gui::egui::TextStyle::{Heading, Body, Monospace, Small, Button};
     use crate::gui::egui::FontFamily::{Proportional};
