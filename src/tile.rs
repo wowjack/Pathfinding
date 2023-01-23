@@ -1,5 +1,3 @@
-
-use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 use bevy::math::*;
 use bevy_mod_picking::*;
@@ -37,10 +35,7 @@ pub struct Tile {
     pub tile_type: TileType,
 }
 impl Tile {
-    pub fn new(entity: Entity, position: (usize, usize)) -> Self {
-        Self {entity, position, parent: None, tile_type: TileType::default()}
-    }
-    pub fn from(entity: Entity, position: (usize, usize), parent: Option<(usize, usize)>, tile_type: TileType) -> Self {
+    pub fn new(entity: Entity, position: (usize, usize), parent: Option<(usize, usize)>, tile_type: TileType) -> Self {
         Self {entity, position, parent, tile_type}
     }
     pub fn default() -> Self {

@@ -36,7 +36,7 @@ impl Grid {
                     let tile_type = if x==1 && y==1 {TileType::Start} else if x==grid_size-2 && x==y {TileType::End} else {TileType::None};
                     let entity = builder.spawn(VisualTileBundle::new((x, y), translation, sprite_size, mesh_assets, tile_type)).id();
                     //println!("tile: {:?}, color: {:?}, type: {:?}", (x, y), tile_type.color(), tile_type);
-                    row.push(Tile::from(entity, (x, y), None, tile_type));
+                    row.push(Tile::new(entity, (x, y), None, tile_type));
                 }
                 grid.push(row);
             }
@@ -57,7 +57,6 @@ impl Grid {
         commands.entity(entity).despawn_descendants();
 
         let mut grid = grid_query.get_mut(entity).unwrap();
-        let old_size = grid.grid_size;
         grid.grid.resize(new_size, vec![Tile::default(); new_size]);
         grid.grid.iter_mut().for_each(|row| {
             row.resize(new_size, Tile::default());
@@ -86,12 +85,14 @@ impl Grid {
         });
     }
 
+    //reset the color of every tile except for Wall, Start, and End
     pub fn clear() {
-
+        todo!()
     }
 
+    //reset the entire grid back to its original state
     pub fn reset() {
-
+        todo!()
     }
 
     //resets type and color of previous start and sets new start
@@ -118,9 +119,7 @@ impl Grid {
         self.grid[self.end.1][self.end.0].set_type(TileType::End, sprite.as_mut());
     }
 
-    //getters
-    pub fn grid_size(&self) -> usize {self.grid_size}
-    pub fn visual_size(&self) -> f32 {self.visual_size}
+    //calculate the size of tile sprites
     pub fn sprite_size(visual_size: f32, grid_size: usize) -> f32 {(visual_size - grid_size as f32) / (grid_size as f32)}
 }
 
@@ -146,7 +145,7 @@ pub fn process_grid_events(
                 Grid::reset();
             },
             GridEvent::Solve => {
-
+                todo!()
             }
         }
     }

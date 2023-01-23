@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_egui::{egui::{self, vec2}, EguiContext};
+use bevy_egui::{egui, EguiContext};
 
 use crate::grid::GridEvent;
 
