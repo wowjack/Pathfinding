@@ -3,9 +3,11 @@ use bevy::prelude::*;
 use bevy::math::*;
 
 pub enum GridEvent {
-    Resize(usize)
+    Resize(usize),
+    Clear,
+    Reset,
+    Solve,
 }
-
 
 #[derive(Default, Component)]
 pub struct Grid {
@@ -72,6 +74,13 @@ impl Grid {
         });
     }
 
+    pub fn clear() {
+
+    }
+
+    pub fn reset() {
+
+    }
     //getters
     pub fn grid_size(&self) -> usize {self.grid_size}
     pub fn visual_size(&self) -> f32 {self.visual_size}
@@ -83,7 +92,18 @@ pub fn process_grid_events(mut commands: Commands, mut event_reader: EventReader
     let grid_entity = grid_entity_query.get_single().unwrap();
     for event in event_reader.iter() {
         match *event {
-            GridEvent::Resize(size) => Grid::resize(grid_entity, &mut commands, &mut mesh_assets, &mut grid_query, size),
+            GridEvent::Resize(size) => {
+                Grid::resize(grid_entity, &mut commands, &mut mesh_assets, &mut grid_query, size);
+            },
+            GridEvent::Clear => {
+                Grid::clear();
+            },
+            GridEvent::Reset => {
+                Grid::reset();
+            },
+            GridEvent::Solve => {
+                
+            }
         }
     }
 }
