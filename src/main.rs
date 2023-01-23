@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use bevy_mod_picking::{DefaultPickingPlugins, PickingCameraBundle, PickableBundle};
 use gui::*;
 use grid::*;
+use tile::*;
 
 mod gui;
 mod grid;
@@ -29,6 +30,7 @@ fn main() {
         .add_startup_system(init)
         .add_system(gui)
         .add_system(process_grid_events)
+        .add_system(process_tile_click_events)
         .run();
 }
 
@@ -42,6 +44,6 @@ fn init(
 
     //create the grid state and visual tiles
     let bottom_left = bevy::math::vec3(-1.*window.width()/2., -1.*window.height()/2., 0.);
-    Grid::spawn_grid(&mut commands, &mut meshes, 100, window.height(), bottom_left);
+    Grid::spawn_grid(&mut commands, &mut meshes, 10, window.height(), bottom_left);
     
 }

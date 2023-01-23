@@ -19,7 +19,7 @@ impl Grid {
     pub fn spawn_grid(commands: &mut Commands, mesh_assets: &mut ResMut<Assets<Mesh>>, grid_size: usize, visual_size: f32, translation: Vec3) {
         if grid_size==0 {return}
 
-        let mut grid: Vec<Vec<Tile>> = vec![vec![]];
+        let mut grid: Vec<Vec<Tile>> = vec![];
         let sprite_size = Grid::sprite_size(visual_size, grid_size);
 
         commands.spawn(SpriteBundle {
@@ -33,6 +33,7 @@ impl Grid {
                     let translation: Vec3 = vec3(x as f32 * (sprite_size+1.), y as f32 * (sprite_size+1.), 0.) + sprite_size/2.;
                     let tile_type = if x==1 && y==1 {TileType::Start} else if x==grid_size-2 && x==y {TileType::End} else {TileType::None};
                     let entity = builder.spawn(VisualTileBundle::new((x, y), translation, sprite_size, mesh_assets, tile_type)).id();
+                    //println!("tile: {:?}, color: {:?}, type: {:?}", (x, y), tile_type.color(), tile_type);
                     row.push(Tile::from(entity, (x, y), None, tile_type));
                 }
                 grid.push(row);

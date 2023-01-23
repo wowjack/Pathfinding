@@ -1,10 +1,11 @@
 
 use bevy::prelude::*;
 use bevy::math::*;
-use bevy::sprite;
 use bevy_mod_picking::*;
 
-#[derive(Clone, Copy, Default)]
+use crate::grid::Grid;
+
+#[derive(Clone, Copy, Default, Debug)]
 pub enum TileType {
     #[default]
     None, Start, End, Wall
@@ -50,14 +51,25 @@ impl Tile {
         }
     }
 
-    pub fn set_color(entity: Entity, mut sprite_query: Query<&mut Sprite, With<VisualTile>>, color: Option<Color>) {
-        let sprite = sprite_query.get_mut(entity);
-        match (sprite, color) {
-            (Ok(mut sprite), Some(color)) => sprite.color = color,
-            (Ok(mut sprite), None) => {
-                todo!("Implement smart color swapping");
+    //Sets the Tile's type and sets the TisualTile's color
+    pub fn set_type_smart(
+        &mut self,
+        new_type: Option<TileType>,
+        mut sprite: &mut Sprite
+    ) {
+        match new_type {
+            Some(t) => {
+                self.tile_type = t;
+                sprite.color = t.color();
             },
-            _ => return,
+            None => {
+                self.tile_type = match self.tile_type {
+                    TileType::None => TileType::Wall,
+                    TileType::Wall => TileType::None,
+                    _ => self.tile_type
+                };
+                sprite.color = self.tile_type.color();
+            },
         }
     }
 }
@@ -65,11 +77,18 @@ impl Tile {
 
 #[derive(Component)]
 pub struct VisualTile {
-    x: usize, y: usize
+    pub x: usize, pub y: usize
 }
 impl VisualTile {
     pub fn new(position: (usize, usize)) -> Self {
         Self {x: position.0, y: position.1}
+    }
+
+    pub fn set_color_smart(sprite: &mut Sprite, color: Option<Color>) {
+        sprite.color = match color {
+            Some(c) => c,
+            None => if sprite.color==WALL_COLOR {BG_COLOR} else {WALL_COLOR},
+        }
     }
 }
 
@@ -81,7 +100,7 @@ pub struct VisualTileBundle {
     pickable_bundle: PickableBundle,
 }
 impl VisualTileBundle {
-    pub fn new(position: (usize, usize), translation: Vec3, size: f32, mut mesh_assets: &mut ResMut<Assets<Mesh>>, tile_type: TileType) -> Self {
+    pub fn new(position: (usize, usize), translation: Vec3, size: f32, mesh_assets: &mut ResMut<Assets<Mesh>>, tile_type: TileType) -> Self {
         let visual_tile = VisualTile::new(position);
         let sprite_bundle = SpriteBundle {
             sprite: Sprite {color: tile_type.color(), ..default()},
@@ -91,5 +110,23 @@ impl VisualTileBundle {
         let mesh = mesh_assets.add(Mesh::from(shape::Quad::default()));
         let pickable_bundle = PickableBundle::default();
         Self { visual_tile, sprite_bundle, mesh, pickable_bundle }
+    }
+}
+
+pub fn process_tile_click_events(
+    mut event_reader: EventReader<PickingEvent>,
+    mut sprite_query: Query<(&mut Sprite, &mut VisualTile), With<VisualTile>>,
+    mut grid_query: Query<&mut Grid>
+) {
+    let mut grid = grid_query.get_single_mut().unwrap();
+    for event in event_reader.iter() {
+        match *event {
+            PickingEvent::Clicked(e) => {
+                let (mut sprite, visual_tile) = sprite_query.get_mut(e).unwrap();
+                grid.grid[visual_tile.y][visual_tile.x].set_type_smart(None, sprite.as_mut());
+                
+            },
+            _ => ()
+        }
     }
 }

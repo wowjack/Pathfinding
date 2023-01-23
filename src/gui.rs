@@ -20,6 +20,7 @@ pub fn gui(
         (Button, FontId::new(14.0, Proportional)),
         (Small, FontId::new(10.0, Proportional)),
     ].into();
+    style.spacing.slider_width = 350.;
     
     ctx.ctx_mut().set_style(style);
     egui::SidePanel::right("GUI panel")
@@ -31,7 +32,7 @@ pub fn gui(
             ui.vertical_centered(|ui| {
                 if ui.button("Solve").clicked() {
                 }
-                let range_slider = ui.add(egui::Slider::new(&mut *grid_size, 4..=100));
+                let range_slider = ui.add(egui::Slider::new(&mut *grid_size, 4..=100).step_by(1.));
                 if range_slider.drag_started() || range_slider.changed() {
                     grid_event_writer.send(GridEvent::Resize(*grid_size));
                 }
