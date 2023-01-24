@@ -20,7 +20,7 @@ pub fn gui(
         (Button, FontId::new(30.0, Proportional)),
         (Small, FontId::new(10.0, Proportional)),
     ].into();
-    style.spacing.slider_width = 350.;
+    style.spacing.slider_width = 250.;
     
     ctx.ctx_mut().set_style(style);
     egui::SidePanel::right("GUI panel")
