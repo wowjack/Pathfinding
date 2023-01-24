@@ -114,6 +114,8 @@ pub fn process_tile_click_events(
     mut hover_tile_type: Local<TileType>,
     mouse_state: Res<Input<MouseButton>>
 ) {
+
+    if !mouse_state.pressed(MouseButton::Left) {*hover_tile_type = TileType::default()}
     let mut grid = grid_query.get_single_mut().unwrap();
     for event in event_reader.iter() {
         match event {
