@@ -128,6 +128,7 @@ pub fn process_tile_click_events(
                     HoverEvent::JustEntered(e) => {
                         if !mouse_state.pressed(MouseButton::Left) {continue}
                         let (mut sprite, visual_tile) = sprite_query.get_mut(*e).unwrap();
+                        if (visual_tile.x, visual_tile.y) == grid.start || (visual_tile.x, visual_tile.y) == grid.end {continue}
                         match *hover_tile_type {
                             TileType::End => grid.set_end((visual_tile.x, visual_tile.y), &mut sprite_query),
                             TileType::Start => grid.set_start((visual_tile.x, visual_tile.y), &mut sprite_query),
