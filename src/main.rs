@@ -7,6 +7,7 @@ use bevy_egui::EguiContext;
 use bevy_mod_picking::{DefaultPickingPlugins, PickingCameraBundle};
 use gui::*;
 use grid::*;
+use solve_buffer::{SolveBuffer, process_update_buffer_system, UpdateTimer};
 use solver::SolverState;
 use tile::*;
 
@@ -14,6 +15,7 @@ mod gui;
 mod grid;
 mod tile;
 mod solver;
+mod solve_buffer;
 
 fn main() {
 
@@ -30,9 +32,11 @@ fn main() {
             },
             ..default()
         }))
-        .add_event::<GridEvent>()
         .insert_resource(ClearColor(Color::rgb(0.5, 0.5, 0.5)))
         .init_resource::<SolverState>()
+        .init_resource::<SolveBuffer>()
+        .init_resource::<UpdateTimer>()
+        .add_event::<GridEvent>()
         .add_plugins(DefaultPickingPlugins)
         .add_plugin(bevy_egui:: EguiPlugin)
         .add_startup_system(init)
@@ -41,6 +45,7 @@ fn main() {
         })
         .add_system(process_grid_events)
         .add_system(process_tile_click_events)
+        .add_system(process_update_buffer_system)
         .run();
 }
 
@@ -55,5 +60,4 @@ fn init(
     //create the grid state and visual tiles
     let bottom_left = bevy::math::vec3(-1.*window.width()/2., -1.*window.height()/2., 0.);
     Grid::spawn_grid(&mut commands, &mut meshes, 20, window.height(), bottom_left);
-    
 }
