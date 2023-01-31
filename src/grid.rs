@@ -65,8 +65,14 @@ impl Grid {
 
         //reset start and end tiles if they were deleted
         if grid.start.0>=grid.grid_size || grid.start.1>=grid.grid_size {
+            if grid.end==(1, 1) {
+                grid.set_end((new_size-2, new_size-2), sprite_query);
+            }
             grid.set_start((1, 1), sprite_query);
         } else if grid.end.0>=grid.grid_size || grid.end.1>=grid.grid_size {
+            if grid.start==(new_size-2, new_size-2) {
+                grid.set_start((1, 1), sprite_query);
+            }
             grid.set_end((new_size-2, new_size-2), sprite_query);
         }
 
