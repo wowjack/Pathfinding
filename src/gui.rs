@@ -32,9 +32,24 @@ pub fn gui(
             ui.add_space(25.);
 
             ui.vertical_centered(|ui| {
-                if ui.button("Solve").clicked() {
-                }
+                //Solve, Clear, Reset buttons
+                ui.horizontal(|ui| {
+                    ui.add_space(35.);
+                    if ui.button("Solve").clicked() {
+                        grid_event_writer.send(GridEvent::Solve);
+                    }
+                    ui.add_space(25.);
+                    if ui.button("Clear").clicked() {
+                        grid_event_writer.send(GridEvent::Clear);
+                    }
+                    ui.add_space(25.);
+                    if ui.button("Reset").clicked() {
+                        grid_event_writer.send(GridEvent::Reset);
+                    }
+                });
                 ui.add_space(25.);
+
+                //Grid size slider
                 ui.horizontal(|ui| {
                     ui.label("Grid Size: ");
                     let range_slider = ui.add(egui::Slider::new(grid_size, 5..=100).step_by(1.));
@@ -42,6 +57,7 @@ pub fn gui(
                         grid_event_writer.send(GridEvent::Resize(*grid_size));
                     }
                 });
+                ui.add_space(25.);
             });
         }
     );

@@ -18,7 +18,12 @@ pub struct Grid {
     grid_size: usize
 }
 impl Grid {
-    pub fn spawn_grid(commands: &mut Commands, mesh_assets: &mut ResMut<Assets<Mesh>>, grid_size: usize, visual_size: f32, translation: Vec3) {
+    pub fn spawn_grid(
+        commands: &mut Commands,
+        mesh_assets: &mut ResMut<Assets<Mesh>>,
+        grid_size: usize, visual_size: f32,
+        translation: Vec3
+    ) {
         if grid_size==0 {return}
 
         let mut grid: Vec<Vec<Tile>> = vec![];
@@ -32,7 +37,7 @@ impl Grid {
             for y in 0..grid_size {
                 let mut row: Vec<Tile> = vec![];
                 for x in 0..grid_size {
-                    let translation: Vec3 = vec3(x as f32 * (sprite_size+1.), y as f32 * (sprite_size+1.), 0.) + sprite_size/2.;
+                    let translation: Vec3 = vec3(x as f32 * (sprite_size+0.25), y as f32 * (sprite_size+0.25), 0.) + sprite_size/2.;
                     let tile_type = if x==1 && y==1 {TileType::Start} else if x==grid_size-2 && x==y {TileType::End} else {TileType::None};
                     let entity = builder.spawn(VisualTileBundle::new((x, y), translation, sprite_size, mesh_assets, tile_type)).id();
                     //println!("tile: {:?}, color: {:?}, type: {:?}", (x, y), tile_type.color(), tile_type);
@@ -82,7 +87,7 @@ impl Grid {
         commands.entity(entity).add_children(|builder| {
             for y in 0..new_size {
                 for x in 0..new_size {
-                    let translation =  vec3(x as f32 * (sprite_size+1.), y as f32 * (sprite_size+1.), 0.) + sprite_size/2.;
+                    let translation =  vec3(x as f32 * (sprite_size+0.25), y as f32 * (sprite_size+0.25), 0.) + sprite_size/2.;
                     let e = builder.spawn(VisualTileBundle::new((x, y), translation, sprite_size, mesh_assets, grid.grid[y][x].tile_type)).id();
                     grid.grid[y][x].entity = e;
                     grid.grid[y][x].position = (x, y);
@@ -92,13 +97,36 @@ impl Grid {
     }
 
     //reset the color of every tile except for Wall, Start, and End
-    pub fn clear() {
-        todo!()
+    pub fn clear(
+        entity: Entity,
+        grid_query: &mut Query<&mut Grid>,
+        sprite_query: &mut Query<(&mut Sprite, &mut VisualTile)>
+    ) {
+        let mut grid = grid_query.get_mut(entity).unwrap();
+        for row in grid.grid.iter_mut() {
+            for tile in row.iter_mut() {
+                let (mut sprite, _) = sprite_query.get_mut(tile.entity).unwrap();
+                tile.set_type(tile.tile_type, sprite.as_mut());
+            }
+        }
     }
 
     //reset the entire grid back to its original state
-    pub fn reset() {
-        todo!()
+    pub fn reset(
+        entity: Entity,
+        grid_query: &mut Query<&mut Grid>,
+        sprite_query: &mut Query<(&mut Sprite, &mut VisualTile)>
+    ) {
+        let mut grid = grid_query.get_mut(entity).unwrap();
+        for row in grid.grid.iter_mut() {
+            for tile in row.iter_mut() {
+                let (mut sprite, _) = sprite_query.get_mut(tile.entity).unwrap();
+                tile.set_type(TileType::None, sprite.as_mut());
+            }
+        }
+        let grid_size = grid.grid_size;
+        grid.set_end((grid_size-2, grid_size-2), sprite_query);
+        grid.set_start((1, 1), sprite_query);
     }
 
     //resets type and color of previous start and sets new start
@@ -126,7 +154,7 @@ impl Grid {
     }
 
     //calculate the size of tile sprites
-    pub fn sprite_size(visual_size: f32, grid_size: usize) -> f32 {(visual_size - grid_size as f32) / (grid_size as f32)}
+    pub fn sprite_size(visual_size: f32, grid_size: usize) -> f32 {(visual_size - (grid_size as f32/4.)) / (grid_size as f32)}
 }
 
 
@@ -145,10 +173,10 @@ pub fn process_grid_events(
                 Grid::resize(grid_entity, &mut commands, &mut mesh_assets, &mut grid_query, size, &mut sprite_query);
             },
             GridEvent::Clear => {
-                Grid::clear();
+                Grid::clear(grid_entity, &mut grid_query, &mut sprite_query);
             },
             GridEvent::Reset => {
-                Grid::reset();
+                Grid::reset(grid_entity, &mut grid_query, &mut sprite_query);
             },
             GridEvent::Solve => {
                 todo!()
