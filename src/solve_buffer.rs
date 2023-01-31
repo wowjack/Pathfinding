@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::tile::VisualTile;
 
 #[derive(Resource, Default)]
-pub struct SolveBuffer(VecDeque<Vec<TileColorEvent>>);
+pub struct SolveBuffer(pub VecDeque<Vec<TileColorEvent>>);
 impl SolveBuffer {
     pub fn process_frame(&mut self, sprite_query: &mut Query<&mut Sprite, With<VisualTile>>) {
         if let Some(event_vec) = self.0.pop_front() {
@@ -20,6 +20,13 @@ pub struct TileColorEvent {
     pub color: Color
 }
 impl TileColorEvent {
+    pub fn new(sprite_entity: Entity, color: Color) -> Self {
+        Self {
+            sprite_entity,
+            color
+        }
+    }
+
     pub fn apply(self, sprite_query: &mut Query<&mut Sprite, With<VisualTile>>) {
         sprite_query.get_mut(self.sprite_entity).unwrap().color = self.color;
     }
@@ -30,7 +37,7 @@ impl TileColorEvent {
 pub struct UpdateTimer(pub Timer);
 impl Default for UpdateTimer {
     fn default() -> Self {
-        Self(Timer::new(std::time::Duration::from_millis(10), TimerMode::Repeating))
+        Self(Timer::new(std::time::Duration::from_millis(1), TimerMode::Repeating))
     }
 }
 

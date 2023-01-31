@@ -1,4 +1,6 @@
 
+use crate::solve_buffer::SolveBuffer;
+use crate::solver::SolverState;
 use crate::tile::*;
 use bevy::prelude::*;
 use bevy::math::*;
@@ -16,7 +18,7 @@ pub struct Grid {
     pub start: (usize, usize),
     pub end: (usize, usize),
     visual_size: f32,
-    grid_size: usize
+    pub grid_size: usize
 }
 impl Grid {
     pub fn spawn_grid(
@@ -130,6 +132,16 @@ impl Grid {
         grid.set_start((1, 1), sprite_query);
     }
 
+    pub fn solve(
+        entity: Entity,
+        grid_query: &mut Query<&mut Grid>,
+        solver_state: &SolverState,
+        solve_buffer: &mut SolveBuffer
+    ) {
+        let mut grid = grid_query.get_mut(entity).unwrap();
+        solver_state.algorithm.get_algorithm()(&mut grid, solve_buffer, solver_state.heuristic.get_heuristic());
+    }
+
     //resets type and color of previous start and sets new start
     pub fn set_start(&mut self, new: (usize, usize), sprite_query: &mut Query<(&mut Sprite, &mut VisualTile)>) {
         if new.0>=self.grid_size || new.1>=self.grid_size {return;}
@@ -140,6 +152,9 @@ impl Grid {
         self.start = new;
         let (mut sprite, _visual_tile) = sprite_query.get_mut(self.grid[self.start.1][self.start.0].entity).unwrap();
         self.grid[self.start.1][self.start.0].set_type(TileType::Start, sprite.as_mut());
+    }
+    pub fn get_start(&self) -> Tile {
+        self.grid[self.start.1][self.start.0]
     }
 
     //resets type and color of previous end and sets new end
@@ -153,6 +168,9 @@ impl Grid {
         let (mut sprite, _visual_tile) = sprite_query.get_mut(self.grid[self.end.1][self.end.0].entity).unwrap();
         self.grid[self.end.1][self.end.0].set_type(TileType::End, sprite.as_mut());
     }
+    pub fn get_end(&self) -> Tile {
+        self.grid[self.end.1][self.end.0]
+    }
 
     //calculate the size of tile sprites
     pub fn sprite_size(visual_size: f32, grid_size: usize) -> f32 {(visual_size - (grid_size as f32/4.)) / (grid_size as f32)}
@@ -165,10 +183,13 @@ pub fn process_grid_events(
     grid_entity_query: Query<Entity, With<Grid>>,
     mut grid_query: Query<&mut Grid>,
     mut mesh_assets: ResMut<Assets<Mesh>>,
-    mut sprite_query: Query<(&mut Sprite, &mut VisualTile)>
+    mut sprite_query: Query<(&mut Sprite, &mut VisualTile)>,
+    solver_state: Res<SolverState>,
+    mut solve_buffer: ResMut<SolveBuffer>
 ) {
     let grid_entity = grid_entity_query.get_single().unwrap();
     for event in event_reader.iter() {
+        solve_buffer.0.clear();
         match *event {
             GridEvent::Resize(size) => {
                 Grid::resize(grid_entity, &mut commands, &mut mesh_assets, &mut grid_query, size, &mut sprite_query);
@@ -180,7 +201,8 @@ pub fn process_grid_events(
                 Grid::reset(grid_entity, &mut grid_query, &mut sprite_query);
             },
             GridEvent::Solve => {
-                todo!();
+                Grid::clear(grid_entity, &mut grid_query, &mut sprite_query);
+                Grid::solve(grid_entity, &mut grid_query, solver_state.as_ref(), solve_buffer.as_mut());
             }
         }
     }

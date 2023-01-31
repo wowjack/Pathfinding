@@ -19,12 +19,13 @@ impl TileType {
         }
     }
 }
-const BG_COLOR: Color = Color::rgb(224./255., 251./255., 252./255.);
-const WALL_COLOR: Color = Color::rgb(41./255., 50./255., 65./255.);
-const START_COLOR: Color = Color::SEA_GREEN;
-const END_COLOR: Color = Color::RED;
-const CLOSED_COLOR: Color = Color::rgb(152./255., 193./255., 217./255.);
-const OPEN_COLOR: Color = Color::rgb(61./255., 90./255., 128./255.);
+pub const BG_COLOR: Color = Color::rgb(224./255., 251./255., 252./255.);
+pub const WALL_COLOR: Color = Color::rgb(41./255., 50./255., 65./255.);
+pub const START_COLOR: Color = Color::SEA_GREEN;
+pub const END_COLOR: Color = Color::RED;
+pub const CLOSED_COLOR: Color = Color::rgb(152./255., 193./255., 217./255.);
+pub const OPEN_COLOR: Color = Color::rgb(61./255., 90./255., 128./255.);
+pub const PATH_COLOR: Color = Color::rgb(238./255., 108./255., 77./255.);
 
 
 #[derive(Clone, Copy)]
