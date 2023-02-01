@@ -20,6 +20,7 @@ mod solve_buffer;
 fn main() {
 
     let mut default_grid_size: usize = 20;
+    let mut solve_speed_divisor: f32 = 1.;
 
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -40,8 +41,8 @@ fn main() {
         .add_plugins(DefaultPickingPlugins)
         .add_plugin(bevy_egui:: EguiPlugin)
         .add_startup_system(init)
-        .add_system(move |ctx: ResMut<EguiContext>, grid_event_writer: EventWriter<GridEvent>| {
-            gui(ctx, grid_event_writer, &mut default_grid_size);
+        .add_system(move |ctx: ResMut<EguiContext>, grid_event_writer: EventWriter<GridEvent>, mut update_timer: ResMut<UpdateTimer>| {
+            gui(ctx, grid_event_writer, &mut default_grid_size, &mut solve_speed_divisor, update_timer);
         })
         .add_system(process_grid_events)
         .add_system(process_tile_click_events)

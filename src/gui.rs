@@ -1,13 +1,17 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext};
 
-use crate::grid::GridEvent;
+use crate::{grid::GridEvent, solve_buffer::UpdateTimer};
 
 
 pub fn gui(
     mut ctx: ResMut<EguiContext>,
     mut grid_event_writer: EventWriter<GridEvent>,
     grid_size: &mut usize,
+    solve_speed_divisor: &mut f32,
+    mut update_timer: ResMut<UpdateTimer>
 ) {
     use crate::gui::egui::TextStyle::{Heading, Body, Monospace, Small, Button};
     use crate::gui::egui::FontFamily::{Proportional};
@@ -55,6 +59,17 @@ pub fn gui(
                     let range_slider = ui.add(egui::Slider::new(grid_size, 5..=100).step_by(1.));
                     if range_slider.drag_started() || range_slider.changed() {
                         grid_event_writer.send(GridEvent::Resize(*grid_size));
+                    }
+                });
+                ui.add_space(25.);
+
+                //Solve speed slider
+                ui.horizontal(|ui| {
+                    ui.label("Solve\nSpeed: ");
+                    ui.add_space(18.);
+                    let range_slider = ui.add(egui::Slider::new(solve_speed_divisor, 0.01..=1.0).step_by(0.01));
+                    if range_slider.drag_started() || range_slider.changed() {
+                        update_timer.0.set_duration(Duration::from_millis((1./solve_speed_divisor.clone()) as u64));
                     }
                 });
                 ui.add_space(25.);
